@@ -159,4 +159,201 @@ router.post("/cardEdit", (req, res, next) => {
 
 
 });
+
+// 全选购物车或者全不选
+router.post("/cardCheckAll", (req, res, next) => {
+  let userId = req.cookies.userId,
+      checkAll = req.body.checkAll ? '1' : '0';
+
+  User.findOne({
+    userId
+  },(err, user) => {
+    if(err){
+      res.json({
+        status:'1',
+        msg:err.message,
+        result:''
+      });
+    }else {
+      if(user) {
+        user.cardList.forEach((item) => {
+          item.checked = checkAll;
+        });
+
+        user.save((err1, doc) => {
+          if(err1){
+            res.json({
+              status:'1',
+              msg:err.message,
+              result:''
+            });
+          }else {
+            res.json({
+              status: '0',
+              msg: '',
+              result: 'suc'
+            });
+          };
+        })
+      }
+    }
+  })
+});
+
+// 新增收货地址
+router.post("/addAddress", (req, res, next) => {
+  let userId = req.cookies.userId,
+      userName = req.body.peopleName,
+      streetName = req.body.peopleAddress,
+      tel = req.body.peopleTel,
+      postCode = req.body.peopleCode;
+
+  User.findOne({
+    userId
+  },(err, user) => {
+    if(err){
+      res.json({
+        status:'1',
+        msg:err.message,
+        result:''
+      });
+    }else {
+      if(user) {
+        let addressId = Number(user.addressList[user.addressList.length - 1].addressId) + 1;
+        let newAddressList = {
+          addressId,
+          userName,
+          streetName,
+          postCode,
+          tel,
+          isDefault: false
+        }
+        user.addressList.push(newAddressList);
+        user.save((err, succ) => {
+          if(err){
+            res.json({
+              status:'1',
+              msg:err.message,
+              result:''
+            });
+          }else{
+            res.json({
+              status:'0',
+              msg:'',
+              result:'addSuccess'
+            });
+          }
+        })
+      }
+    }
+  })
+});
+
+// 收货地址列表
+router.get("/addressList", (req, res, next) => {
+  let userId = req.cookies.userId;
+
+  User.findOne({userId}, (err, doc) => {
+    if(err){
+      res.json({
+        status: '1',
+        msg: err.message,
+        result: ''
+      });
+    }else {
+      res.json({
+        status: '0',
+        msg: '',
+        result: doc.addressList
+      })
+    }
+  })
+});
+
+// 设置默认地址
+router.post("/setDefault", (req, res, next) => {
+  let userId = req.cookies.userId,
+      addressId = req.body.addressId;
+
+  if(!addressId) {
+    res.json({
+      status:'1004',
+      msg: '地址id获取失败',
+      result:''
+    });
+  }
+
+  User.findOne({userId}, (err, doc) => {
+    if(err){
+      res.json({
+        status:'1',
+        msg:err.message,
+        result:''
+      });
+    }else {
+      if(doc) {
+        doc.addressList.forEach(item => {
+          if(item.addressId == addressId) {
+            item.isDefault = true;
+          }else {
+            item.isDefault = false;
+          }
+        })
+
+        doc.save((err1, doc1) => {
+          if(err1) {
+            res.json({
+              status: '1',
+              msg: err1.message,
+              result: ''
+            });
+          }else {
+            res.json({
+              status: '0',
+              msg: '',
+              result: ''
+            });
+          }
+        })
+      }
+    }
+  })
+});
+
+// 删除收货地址
+router.post("/addressDel", (req, res, next) => {
+  let userId = req.cookies.userId,
+      addressId = req.body.addressId;
+  if(!addressId) {
+    res.json({
+      status:'1004',
+      msg: '地址id获取失败',
+      result:''
+    });
+  }
+  User.update({
+    userId
+  },{
+    $pull:{
+      'addressList':{
+        addressId
+      }
+    }
+  }, (err,doc) => {
+    if(err){
+      res.json({
+        status:'1',
+        msg:err.message,
+        result:''
+      });
+    }else{
+      res.json({
+        status:'0',
+        msg:'',
+        result:'suc'
+      });
+    }
+  });
+});
+
 module.exports = router;
