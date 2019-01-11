@@ -1,6 +1,9 @@
 let express = require('express');
 let router = express.Router();
 
+// 时间选择器
+require('./../util/util');
+
 let User = require('./../models/user');
 
 /* GET users listing. */
@@ -354,6 +357,137 @@ router.post("/addressDel", (req, res, next) => {
       });
     }
   });
+});
+
+// 生成订单
+router.post("/payMent", (req, res, next) => {
+  let userId = req.cookies.userId,
+      addressId = req.body.addressId,
+      orderTotal = req.body.orderTotal;
+
+  User.findOne({userId}, (err, userData) => {
+    if(err){
+      res.json({
+        status:'1',
+        msg:err.message,
+        result:''
+      });
+    }else{
+      let address = '',
+          goodsList = [];
+      // 获取用户当前生成订单的所选的地址
+      userData.addressList.forEach((item) => {
+        if(addressId == item.addressId) {
+          address = item.streetName;
+        }
+      });
+
+      // 获取用户购物车的购买商品
+      userData.cardList.forEach(item => {
+        if(item.checked == 1) {
+          goodsList.push(item);
+        }
+      });
+
+      // 取0-9的随机数
+      let random1 = Math.floor(Math.random() * 10);
+      let random2 = Math.floor(Math.random() * 10);
+
+      // 因为在上面引入util的工具类 他在data的原型上做了定义。
+      // 取系统时间
+      let sysDate = new Date().Format('yyyyMMddhhmmss');
+      // 取订单创建时间
+      let createDate = new Date().Format('yyyy-MM-dd hh:mm:ss');
+
+      // 订单id
+      // 假设定义了平台型号码
+      let platform = '721';
+      //  平台码 3位 + 随机数 1位 + 系统时间 14位 + 随机数 1位;
+      let orderId = platform + random1 + sysDate +random2;
+
+      // 创建订单
+      let order = {
+        orderId: orderId,
+        orderTotal: orderTotal,
+        addressInfo: address,
+        goodsList: goodsList,
+        // 订单状态
+        orderStatus: '1',
+        // 订单创建日期
+        createDate: createDate
+      }
+
+      userData.orderList.push(order);
+
+      userData.save((err1, doc) => {
+        if(err1) {
+          res.json({
+            status:'1',
+            msg:err.message,
+            result:''
+          });
+        }else {
+          res.json({
+            status:'0',
+            msg:'',
+            result: {
+              orderId: order.orderId,
+              orderTotal: order.orderTotal
+            }
+          });
+        }
+      });
+    }
+  })
+});
+
+// 根据订单id查询订单信息
+router.get("/orderDetail", (req, res, next) => {
+  let userId = req.cookies.userId,
+      orderId = req.param("orderId");
+
+  User.findOne({userId}, (err, userData) => {
+    if(err) {
+      res.json({
+        status: '1',
+        msg: err.message,
+        result: ''
+      });
+    }else {
+      let orderList = userData.orderList;
+      if(orderList.length > 0) {
+        let orderTotal = '';
+        orderList.forEach((item) => {
+          if(item.orderId == orderId) {
+            orderTotal = item.orderTotal;
+          }
+        })
+
+        if(orderTotal > 0) {
+          res.json({
+            status: '0',
+            msg: '',
+            result: {
+              orderId,
+              orderTotal
+            }
+          })
+        }else {
+          res.json({
+            status: '120002',
+            msg: "无此订单",
+            result: ''
+          })
+        }
+      }else {
+        res.json({
+          status: '120001',
+          msg: "未创建订单",
+          result: ''
+        })
+      }
+    }
+  })
 });
 
 module.exports = router;
